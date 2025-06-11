@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:nfc_card/features/tag_management/domain/tag.dart' show TagAdapter;
 import 'app/app.dart';
 import 'features/nfc_scan/data/nfc_repository.dart';
 
@@ -10,6 +11,7 @@ void main() async {
 
   try {
     await Hive.initFlutter();
+    Hive.registerAdapter(TagAdapter());
     final nfcRepository = NfcRepository();
     await nfcRepository.init();
 

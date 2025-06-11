@@ -1,5 +1,6 @@
-// lib/features/nfc_scan/presentation/scan_viewmodel.dart
+//lib/features/nfc_scan/presentation/scan_viewmodel.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nfc_card/features/nfc_scan/presentation/nfc_provider.dart' show nfcProvider;
 
 class ScanState {
   final bool isScanning;
@@ -33,47 +34,43 @@ class ScanState {
   }
 }
 
-final scanProvider = StateNotifierProvider<ScanViewModel, ScanState>(
-  (ref) => ScanViewModel(ref),
-);
-
 class ScanViewModel extends StateNotifier<ScanState> {
   final Ref ref;
-
   ScanViewModel(this.ref) : super(ScanState());
 
-  void reset() {
-    state = ScanState();
-  }
   Future<void> startScan() async {
-      state = state.copyWith(isScanning: true);
-      try {
-        // Implement your scan logic here
-        // Example:
-        // final tag = await ref.read(nfcRepositoryProvider).scanTag();
-        // state = state.copyWith(
-        //   isScanning: false,
-        //   tagId: tag.id,
-        //   payload: tag.payload,
-        // );
-      } catch (e) {
-        state = state.copyWith(isScanning: false);
-        rethrow;
+    if (state.isScanning) return;
+    
+    state = state.copyWith(isScanning: true, isLoading: true);
+    try {
+      final tag = await ref.read(nfcProvider.notifier).scanTag();
+      if (tag != null) {
+        state = state.copyWith(
+          isScanning: false,
+          isLoading: false,
+          tagId: tag.id,
+          payload: tag.payload,
+        );
+      } else {
+        state = state.copyWith(isScanning: false, isLoading: false);
       }
+    } catch (e) {
+      state = state.copyWith(isScanning: false, isLoading: false);
+      rethrow;
     }
+  }
+
   void stopScan() {
-    // Implement stop scan logic
+    ref.read(nfcProvider.notifier).stopScan();
     state = state.copyWith(isScanning: false);
   }
 
-  Future<void> scanTag() async {
-    state = state.copyWith(isLoading: true);
-    // Implement scan logic
-    // state = state.copyWith(
-    //   tagId: scannedId,
-    //   payload: payload,
-    //   discoveredAid: aid,
-    //   isLoading: false
-    // );
+  void reset() {
+    ref.read(nfcProvider.notifier).clearCurrentTag();
+    state = ScanState();
   }
 }
+
+final scanProvider = StateNotifierProvider<ScanViewModel, ScanState>(
+  (ref) => ScanViewModel(ref),
+);

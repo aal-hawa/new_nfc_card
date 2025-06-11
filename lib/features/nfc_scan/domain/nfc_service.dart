@@ -2,6 +2,7 @@
 import 'package:flutter/services.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 class NfcService {
   final MethodChannel _platform = const MethodChannel('com.example.nfc_card/channel');
 
@@ -23,7 +24,6 @@ class NfcService {
 
   Future<void> stopSession() => NfcManager.instance.stopSession();
 
-  // HCE Methods
   Future<bool> setHceEmulation(bool active) async {
     try {
       return await _platform.invokeMethod('setHceEmulation', {'active': active});

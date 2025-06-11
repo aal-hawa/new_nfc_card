@@ -1,12 +1,13 @@
-// lib/features/nfc_scan/presentation/nfc_provider.dart
+//lib/features/nfc_scan/presentation/nfc_provider.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nfc_card/features/nfc_scan/data/nfc_repository.dart';
-import 'package:nfc_manager/src/nfc_manager_android/pigeon.g.dart' show TagPigeon;
+import 'package:nfc_card/features/tag_management/domain/tag.dart';
+import 'package:nfc_manager/nfc_manager.dart' show NfcManager;
 
 class NfcState {
   final bool isScanning;
-  final TagPigeon? currentTag;
-  final List<TagPigeon> savedTags;
+  final Tag? currentTag;
+  final List<Tag> savedTags;
 
   NfcState({
     this.isScanning = false,
@@ -14,11 +15,10 @@ class NfcState {
     this.savedTags = const [],
   });
 
-  // Add copyWith method
   NfcState copyWith({
     bool? isScanning,
-    TagPigeon? currentTag,
-    List<TagPigeon>? savedTags,
+    Tag? currentTag,
+    List<Tag>? savedTags,
   }) {
     return NfcState(
       isScanning: isScanning ?? this.isScanning,
@@ -30,24 +30,44 @@ class NfcState {
 
 class NfcNotifier extends StateNotifier<NfcState> {
   final NfcRepository _repository;
+  
+  NfcNotifier(this._repository) : super(NfcState()) {
+    _initNfc();
+  }
 
-  NfcNotifier(this._repository) : super(NfcState());
+  Future<void> _initNfc() async {
+    final isAvailable = await NfcManager.instance.isAvailable();
+    if (!isAvailable) {
+      throw Exception('NFC not available on this device');
+    }
+  }
 
-  Future<void> scanTag() async {
+  Future<Tag?> scanTag() async {
+    if (state.isScanning) return null;
+    
     state = state.copyWith(isScanning: true);
     try {
       final tag = await _repository.scanTag();
-      state = state.copyWith(currentTag: tag, isScanning: false);
+      state = state.copyWith(
+        currentTag: tag,
+        isScanning: false,
+        savedTags: [...state.savedTags, if (tag != null) tag],
+      );
+      return tag;
     } catch (e) {
       state = state.copyWith(isScanning: false);
       rethrow;
     }
   }
 
-  // Add other state management methods
-   void stopScan() {
+  void stopScan() {
+    if (!state.isScanning) return;
+    NfcManager.instance.stopSession();
     state = state.copyWith(isScanning: false);
-    // Add any additional cleanup if needed
+  }
+
+  void clearCurrentTag() {
+    state = state.copyWith(currentTag: null);
   }
 }
 
