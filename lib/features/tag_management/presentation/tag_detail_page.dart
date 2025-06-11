@@ -2,10 +2,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nfc_card/features/tag_management/domain/tag.dart';
-import 'package:nfc_card/features/tag_management/presentation/tag_management_viewmodel.dart';
+import 'package:nfc_card/features/tag_management/presentation/widgets/save_tag_dialog.dart';
 
 class TagDetailPage extends ConsumerStatefulWidget {
-  const TagDetailPage({super.key});
+  final Tag tag;
+  const TagDetailPage({super.key, required this.tag});
 
   @override
   ConsumerState<TagDetailPage> createState() => _TagDetailPageState();
@@ -18,26 +19,8 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController();
-    _actionController = TextEditingController();
-    _loadTagData();
-  }
-
-  Future<void> _loadTagData() async {
-    final tagId = ModalRoute.of(context)?.settings.arguments as String?;
-    if (tagId == null) {
-      if (mounted) Navigator.pop(context);
-      return;
-    }
-
-    final tag = ref.read(tagManagementProvider.notifier).getTagById(tagId);
-    if (tag == null) {
-      if (mounted) Navigator.pop(context);
-      return;
-    }
-
-    _nameController.text = tag.name;
-    _actionController.text = tag.customAction ?? '';
+    _nameController = TextEditingController(text: widget.tag.name);
+    _actionController = TextEditingController(text: widget.tag.customAction ?? '');
   }
 
   @override
@@ -49,22 +32,13 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final tagId = ModalRoute.of(context)?.settings.arguments as String?;
-    final tag = tagId != null 
-        ? ref.read(tagManagementProvider.notifier).getTagById(tagId)
-        : null;
-
-    if (tag == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(tag.name),
+        title: Text(widget.tag.name),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: () => _deleteTag(context, tag.id),
+            icon: const Icon(Icons.save),
+            onPressed: () => _showSaveDialog(context, widget.tag),
           ),
         ],
       ),
@@ -73,19 +47,17 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildBasicInfoCard(tag),
+            _buildBasicInfoCard(widget.tag),
             const SizedBox(height: 20),
-            _buildPayloadCard(tag),
-            if (tag.protocolSequence != null && tag.protocolSequence!.isNotEmpty) ...[
+            _buildPayloadCard(widget.tag),
+            if (widget.tag.protocolSequence != null && widget.tag.protocolSequence!.isNotEmpty) ...[
               const SizedBox(height: 20),
-              _buildProtocolInfo(tag),
+              _buildProtocolInfo(widget.tag),
             ],
             const SizedBox(height: 20),
-            _buildCustomActionCard(tag),
+            _buildCustomActionCard(widget.tag),
             const SizedBox(height: 20),
-            _buildEditNameCard(tag),
-            const SizedBox(height: 30),
-            _buildSaveButton(context, tag),
+            _buildEditNameCard(widget.tag),
           ],
         ),
       ),
@@ -111,7 +83,7 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
             const SizedBox(height: 16),
             _buildDetailRow('Tag Name', tag.name),
             _buildDetailRow('Tag ID', tag.id),
-            _buildDetailRow('Saved At', _formatDate(tag.savedAt)),
+            _buildDetailRow('Technology', tag.protocolSequence?.join(', ') ?? 'Unknown'),
           ],
         ),
       ),
@@ -156,9 +128,9 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: tag.protocolSequence!
-                  .map((cmd) => Padding(
+                  .map((tech) => Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4.0),
-                    child: Text('• $cmd'),
+                    child: Text('• $tech'),
                   ))
                   .toList(),
             ),
@@ -231,22 +203,18 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
     );
   }
 
-  Widget _buildSaveButton(BuildContext context, Tag tag) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () {
-          ref.read(tagManagementProvider.notifier).saveTag(tag);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tag saved successfully')),
-          );
-        },
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-        ),
-        child: const Text('SAVE CHANGES'),
-      ),
+  Future<void> _showSaveDialog(BuildContext context, Tag tag) async {
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => SaveTagDialog(tag: tag),
     );
+
+    if (saved == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tag saved successfully')),
+      );
+      Navigator.pop(context);
+    }
   }
 
   Widget _buildDetailRow(String label, String value) {
@@ -275,38 +243,5 @@ class _TagDetailPageState extends ConsumerState<TagDetailPage> {
         ],
       ),
     );
-  }
-
-  Future<void> _deleteTag(BuildContext context, String id) async {
-    final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Delete Tag?'),
-            content: const Text('This tag will be permanently removed'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text(
-                  'Delete',
-                  style: TextStyle(color: Colors.red),
-                ),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-
-    if (confirmed && mounted) {
-      ref.read(tagManagementProvider.notifier).deleteTag(id);
-      Navigator.pop(context);
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 }

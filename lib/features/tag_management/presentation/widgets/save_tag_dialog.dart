@@ -5,16 +5,10 @@ import 'package:nfc_card/features/tag_management/presentation/tag_management_vie
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class SaveTagDialog extends ConsumerStatefulWidget {
-  final String tagId;
-  final String payload;
-  final String? discoveredAid;
-  final List<String>? protocolSequence;
+  final Tag tag;
 
   const SaveTagDialog({
-    required this.tagId,
-    required this.payload,
-    this.discoveredAid,
-    this.protocolSequence,
+    required this.tag,
     super.key,
   });
 
@@ -25,22 +19,19 @@ class SaveTagDialog extends ConsumerStatefulWidget {
 class _SaveTagDialogState extends ConsumerState<SaveTagDialog> {
   late TextEditingController _nameController;
   late TextEditingController _actionController;
-  late TextEditingController _aidController;
   bool _isDefault = false;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: 'Tag ${widget.tagId.substring(0, 4)}');
-    _actionController = TextEditingController();
-    _aidController = TextEditingController(text: widget.discoveredAid ?? '');
+    _nameController = TextEditingController(text: widget.tag.name);
+    _actionController = TextEditingController(text: widget.tag.customAction ?? '');
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _actionController.dispose();
-    _aidController.dispose();
     super.dispose();
   }
 
@@ -62,15 +53,17 @@ class _SaveTagDialogState extends ConsumerState<SaveTagDialog> {
               ),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _aidController,
-              decoration: const InputDecoration(
-                labelText: 'Application ID (AID)',
-                border: OutlineInputBorder(),
+            if (widget.tag.discoveredAid != null) ...[
+              TextField(
+                decoration: InputDecoration(
+                  labelText: 'Application ID (AID)',
+                  border: const OutlineInputBorder(),
+                  hintText: widget.tag.discoveredAid,
+                ),
+                readOnly: true,
               ),
-              readOnly: true,
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ],
             TextField(
               controller: _actionController,
               decoration: const InputDecoration(
@@ -78,14 +71,14 @@ class _SaveTagDialogState extends ConsumerState<SaveTagDialog> {
                 border: OutlineInputBorder(),
               ),
             ),
-            if (widget.protocolSequence != null && widget.protocolSequence!.isNotEmpty) ...[
+            if (widget.tag.protocolSequence != null && widget.tag.protocolSequence!.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
                 'Protocol Sequence Captured',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               Text(
-                '${widget.protocolSequence!.length} steps',
+                '${widget.tag.protocolSequence!.length} steps',
               ),
             ],
             const SizedBox(height: 16),
@@ -112,20 +105,16 @@ class _SaveTagDialogState extends ConsumerState<SaveTagDialog> {
         ),
         ElevatedButton(
           onPressed: () {
-            final tag = Tag(
-              id: widget.tagId,
+            final updatedTag = widget.tag.copyWith(
               name: _nameController.text,
-              payload: widget.payload,
               customAction: _actionController.text.isNotEmpty ? _actionController.text : null,
-              discoveredAid: widget.discoveredAid,
-              protocolSequence: widget.protocolSequence,
             );
 
-            viewModel.saveTag(tag).then((_) {
+            viewModel.saveTag(updatedTag).then((_) {
               if (_isDefault) {
-                viewModel.setDefaultTag(widget.tagId);
+                viewModel.setDefaultTag(updatedTag.id);
               }
-              Navigator.pop(context);
+              Navigator.pop(context, true);
             });
           },
           style: ElevatedButton.styleFrom(

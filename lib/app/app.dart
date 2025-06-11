@@ -8,6 +8,7 @@ import 'package:nfc_card/features/settings/presentation/home_page.dart';
 import 'package:nfc_card/features/nfc_scan/presentation/scan_page.dart';
 import 'package:nfc_card/features/tag_management/presentation/saved_tags_page.dart';
 import 'package:nfc_card/features/tag_management/presentation/tag_detail_page.dart';
+import 'package:nfc_card/features/tag_management/domain/tag.dart';
 import 'package:nfc_card/features/tag_sharing/presentation/tag_sharing_page.dart';
 
 class MyApp extends StatelessWidget {
@@ -46,11 +47,20 @@ class MyApp extends StatelessWidget {
         AppRoutes.home: (context) => const HomePage(),
         AppRoutes.scan: (context) => const ScanPage(),
         AppRoutes.savedTags: (context) => const SavedTagsPage(),
-        AppRoutes.tagDetail: (context) => const TagDetailPage(),
         AppRoutes.tagSharing: (context) => const TagSharingPage(),
         AppRoutes.about: (context) => const AboutPage(),
         AppRoutes.aids: (context) => const AidsPage(),
         AppRoutes.aidDiscovery: (context) => const AidDiscoveryPage(),
+      },
+      onGenerateRoute: (settings) {
+        // Handle TagDetailPage route with tag parameter
+        if (settings.name == AppRoutes.tagDetail) {
+          final tag = settings.arguments as Tag;
+          return MaterialPageRoute(
+            builder: (context) => TagDetailPage(tag: tag),
+          );
+        }
+        return null;
       },
     );
   }

@@ -1,8 +1,11 @@
 // lib/features/nfc_scan/presentation/scan_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:nfc_card/features/nfc_scan/data/nfc_repository.dart' show nfcRepositoryProvider;
 import 'package:nfc_card/features/nfc_scan/presentation/scan_viewmodel.dart';
 import 'package:nfc_card/features/nfc_scan/presentation/widgets/nfc_scanner.dart';
+import 'package:nfc_card/features/tag_management/domain/tag.dart' show Tag;
+import 'package:nfc_card/features/tag_management/presentation/tag_detail_page.dart' show TagDetailPage;
 
 class ScanPage extends ConsumerStatefulWidget {
   const ScanPage({super.key});
@@ -20,90 +23,129 @@ class _ScanPageState extends ConsumerState<ScanPage> {
     });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final state = ref.watch(scanProvider);
-    final viewModel = ref.read(scanProvider.notifier);
+ @override
+Widget build(BuildContext context) {
+  final state = ref.watch(scanProvider);
+  final viewModel = ref.read(scanProvider.notifier);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('NFC Scanner'),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            viewModel.stopScan();
-            Navigator.pop(context);
-          },
-        ),
-        actions: [
-          if (state.discoveredAid != null)
-            IconButton(
-              icon: const Icon(Icons.info_outline),
-              onPressed: () => _showAidInfo(context, state.discoveredAid!),
-            ),
-        ],
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text('NFC Scanner'),
+      centerTitle: true,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () {
+          viewModel.stopScan();
+          Navigator.pop(context);
+        },
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
+    ),
+    body: SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            const Expanded(child: NFCScannerWidget()),
-            if (state.tagId != null) ...[
-              _buildScanResult(context, state),
-              const SizedBox(height: 20),
+            // Scanner Widget at top
+            Card(
+              elevation: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: NFCScannerWidget(),
+              ),
+            ),
+            
+            // Scan Results Section
+            if (state.tag != null) ...[
+              _buildScanResult(context, state.tag!),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.save),
+                      label: const Text('SAVE TAG'),
+                      onPressed: () => _saveTag(context, state.tag!),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.info_outline),
+                      label: const Text('DETAILS'),
+                      onPressed: () => _showTagDetails(context, state.tag!),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ],
         ),
       ),
-    );
+    ),
+  );
+}
+
+  // Add these new methods to ScanPage class
+  Future<void> _saveTag(BuildContext context, Tag tag) async {
+    try {
+      // Save logic here - you'll need to implement this in your repository
+      await ref.read(nfcRepositoryProvider).saveTag(tag);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tag saved successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving tag: $e')),
+      );
+    }
   }
 
-  Widget _buildScanResult(BuildContext context, ScanState state) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.tag, color: Colors.blue),
-                const SizedBox(width: 8),
-                Text(
-                  'SCAN RESULT',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            _buildInfoRow('Tag ID', state.tagId!),
-            if (state.payload != null) 
-              _buildInfoRow('Payload', state.payload!),
-            if (state.discoveredAid != null)
-              _buildInfoRow('Discovered AID', state.discoveredAid!),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: ref.read(scanProvider.notifier).reset,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  side: BorderSide(color: Colors.grey.shade300),
-                ),
-                child: const Text('CLEAR SCAN'),
-              ),
-            ),
-          ],
-        ),
+  void _showTagDetails(BuildContext context, Tag tag) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TagDetailPage(tag: tag),
       ),
     );
   }
+}
+
+ // Update _buildScanResult to be more compact
+Widget _buildScanResult(BuildContext context, Tag tag) {
+  return Card(
+    elevation: 4,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'SCAN RESULT',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.blue,
+            ),
+          ),
+          const Divider(height: 16),
+          _buildInfoRow('Tag ID', tag.id),
+          if (tag.payload != null) _buildInfoRow('Payload', tag.payload!),
+          if (tag.discoveredAid != null) _buildInfoRow('AID', tag.discoveredAid!),
+        ],
+      ),
+    ),
+  );
+}
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
@@ -169,4 +211,3 @@ class _ScanPageState extends ConsumerState<ScanPage> {
       ),
     );
   }
-}

@@ -1,34 +1,31 @@
 //lib/features/nfc_scan/presentation/scan_viewmodel.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:nfc_card/features/nfc_scan/presentation/nfc_provider.dart' show nfcProvider;
+import 'package:nfc_card/features/tag_management/domain/tag.dart';
 
 class ScanState {
   final bool isScanning;
-  final String? tagId;
-  final String? payload;
-  final String? discoveredAid;
+  final Tag? tag;
+  final String? error;
   final bool isLoading;
 
   ScanState({
     this.isScanning = false,
-    this.tagId,
-    this.payload,
-    this.discoveredAid,
+    this.tag,
+    this.error,
     this.isLoading = false,
   });
 
   ScanState copyWith({
     bool? isScanning,
-    String? tagId,
-    String? payload,
-    String? discoveredAid,
+    Tag? tag,
+    String? error,
     bool? isLoading,
   }) {
     return ScanState(
       isScanning: isScanning ?? this.isScanning,
-      tagId: tagId ?? this.tagId,
-      payload: payload ?? this.payload,
-      discoveredAid: discoveredAid ?? this.discoveredAid,
+      tag: tag ?? this.tag,
+      error: error ?? this.error,
       isLoading: isLoading ?? this.isLoading,
     );
   }
@@ -41,22 +38,38 @@ class ScanViewModel extends StateNotifier<ScanState> {
   Future<void> startScan() async {
     if (state.isScanning) return;
     
-    state = state.copyWith(isScanning: true, isLoading: true);
+    state = state.copyWith(isScanning: true, isLoading: true, error: null);
     try {
-      final tag = await ref.read(nfcProvider.notifier).scanTag();
-      if (tag != null) {
+      final tagData = await ref.read(nfcProvider.notifier).scanTag();
+      if (tagData != null) {
+        final tag = Tag(
+          id: tagData.id,
+          name: 'New Tag',
+          savedAt: DateTime.now(),
+          payload: tagData.payload,
+          protocolSequence: tagData.protocolSequence,
+          customAction: tagData.customAction,
+          discoveredAid: tagData.discoveredAid,
+        );
+        
         state = state.copyWith(
           isScanning: false,
           isLoading: false,
-          tagId: tag.id,
-          payload: tag.payload,
+          tag: tag,
         );
       } else {
-        state = state.copyWith(isScanning: false, isLoading: false);
+        state = state.copyWith(
+          isScanning: false, 
+          isLoading: false,
+          error: 'No tag detected'
+        );
       }
     } catch (e) {
-      state = state.copyWith(isScanning: false, isLoading: false);
-      rethrow;
+      state = state.copyWith(
+        isScanning: false, 
+        isLoading: false,
+        error: 'Error scanning tag: $e'
+      );
     }
   }
 
