@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:nfc_manager/nfc_manager.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 class NfcService {
-  final MethodChannel _platform = const MethodChannel('com.example.nfc_card/sharing');
+  final MethodChannel _platform = const MethodChannel('com.example.nfc_card/channel');
 
   Future<bool> isAvailable() => NfcManager.instance.isAvailable();
   

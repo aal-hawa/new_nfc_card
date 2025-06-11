@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.NFC" />
     <uses-feature android:name="android.hardware.nfc" android:required="true" />
     <uses-feature android:name="android.hardware.nfc.hce" android:required="true" />
-
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Queries must be OUTSIDE application tag -->
     <queries>
         <!-- NFC Intent -->
@@ -40,7 +40,7 @@
         </service>
 
         <activity
-            android:name=".MainActivity"
+            android:name="com.example.nfc_card.presentation.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"

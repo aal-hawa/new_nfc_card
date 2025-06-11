@@ -15,7 +15,7 @@ import com.example.nfc_card.domain.HceService
 import android.content.pm.PackageManager
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.example.nfc_card/sharing"
+    private val CHANNEL = "com.example.nfc_card/channel"
     private lateinit var nfcService: NfcService
     private lateinit var hceService: HceService
     private lateinit var prefs: SharedPreferences
